@@ -28,6 +28,9 @@
 /* USER CODE BEGIN PTD */
 static void LED_ON(uint16_t gpio_pin);
 static void LED_OFF(uint16_t gpio_pin);
+static void RED_LED_ONLY();
+static void GREEN_LED_ONLY();
+static void BLUE_LED_ONLY();
 static uint8_t read_sht31_outputs(float * temp_c, float * humidity);
 /* USER CODE END PTD */
 
@@ -108,20 +111,19 @@ int main(void)
 	  return_status = read_sht31_outputs(&temp_c, &humidity);
 	  if (return_status != 0) {
 		  sprintf((char*)msg, "Failed to read from SHT31, error code: %i\r\n", return_status);
+		  BLUE_LED_ONLY();
 	  }
 	  else {
 		  sprintf((char*)msg, "Temperature: %.1f'C%, Humidity: %.1f%%\r\n", temp_c, humidity);
+		  if (humidity >= humidity_limit) {
+			  RED_LED_ONLY();
+		  } else {
+			  GREEN_LED_ONLY();
+		  }
 	  }
 
 	  HAL_UART_Transmit(&huart2, msg, strlen((char*) msg), 100);
 
-	  if (humidity >= humidity_limit) {
-		  LED_OFF(EXT_GREEN_LED_Pin);
-		  LED_ON(EXT_RED_LED_Pin);
-	  } else {
-		  LED_OFF(EXT_RED_LED_Pin);
-		  LED_ON(EXT_GREEN_LED_Pin);
-	  }
 	  HAL_Delay(1000);
     /* USER CODE END WHILE */
 
@@ -303,15 +305,37 @@ static void LED_OFF(uint16_t gpio_pin)
 	HAL_GPIO_WritePin(GPIOC, gpio_pin, GPIO_PIN_SET);
 }
 
+static void RED_LED_ONLY()
+{
+	LED_OFF(EXT_GREEN_LED_Pin);
+	LED_OFF(EXT_BLUE_LED_Pin);
+  	LED_ON(EXT_RED_LED_Pin);
+}
+
+static void GREEN_LED_ONLY()
+{
+	LED_OFF(EXT_RED_LED_Pin);
+	LED_OFF(EXT_BLUE_LED_Pin);
+	LED_ON(EXT_GREEN_LED_Pin);
+}
+
+static void BLUE_LED_ONLY()
+{
+	LED_OFF(EXT_RED_LED_Pin);
+	LED_OFF(EXT_GREEN_LED_Pin);
+	LED_ON(EXT_BLUE_LED_Pin);
+}
+
+
 static uint8_t read_sht31_outputs(float * temp_c, float * humidity)
 {
 	uint8_t data[10];
 	uint8_t command_buffer[2] = {0x2C, 0x06};
-	HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit(&hi2c1, SHT31_ADD, command_buffer, 2, HAL_MAX_DELAY);
+	HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit(&hi2c1, SHT31_ADD, command_buffer, 2, 100);
 	if (ret != HAL_OK) {
 		return 1;
 	} else {
-		ret = HAL_I2C_Master_Receive(&hi2c1, SHT31_ADD, data, 6, HAL_MAX_DELAY);
+		ret = HAL_I2C_Master_Receive(&hi2c1, SHT31_ADD, data, 6, 100);
 		if (ret != HAL_OK) {
 			return 2;
 		} else {
