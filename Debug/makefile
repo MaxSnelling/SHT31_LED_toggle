@@ -61,7 +61,7 @@ main-build: SHT31_LED.elf secondary-outputs
 
 # Tool invocations
 SHT31_LED.elf SHT31_LED.map: $(OBJS) $(USER_OBJS) C:\Users\Max\STM32CubeIDE\workspace_1.14.0\SHT31_LED\STM32F446RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "SHT31_LED.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Max\STM32CubeIDE\workspace_1.14.0\SHT31_LED\STM32F446RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="SHT31_LED.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "SHT31_LED.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Max\STM32CubeIDE\workspace_1.14.0\SHT31_LED\STM32F446RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="SHT31_LED.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

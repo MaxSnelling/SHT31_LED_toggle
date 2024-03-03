@@ -28,6 +28,7 @@
 /* USER CODE BEGIN PTD */
 static void LED_ON(uint16_t gpio_pin);
 static void LED_OFF(uint16_t gpio_pin);
+static float read_humidity();
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -46,7 +47,7 @@ I2C_HandleTypeDef hi2c1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+static const uint8_t SHT31_ADD = 0x44 << 1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -70,7 +71,8 @@ static void MX_I2C1_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	float temp_c;
+	float humidity;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -94,22 +96,54 @@ int main(void)
   MX_USART2_UART_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-
+  uint8_t data[10];
+  uint8_t msg[64];
+  uint16_t temp_raw, humidity_raw;
+  HAL_StatusTypeDef ret;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  LED_ON(EXT_RED_LED_Pin);
-	  HAL_Delay(500);
-	  LED_OFF(EXT_RED_LED_Pin);
-	  LED_ON(EXT_GREEN_LED_Pin);
-	  HAL_Delay(500);
-	  LED_OFF(EXT_GREEN_LED_Pin);
-	  LED_ON(EXT_BLUE_LED_Pin);
-	  HAL_Delay(500);
-	  LED_OFF(EXT_BLUE_LED_Pin);
+//	  LED_ON(EXT_RED_LED_Pin);
+//	  HAL_Delay(500);
+//	  LED_OFF(EXT_RED_LED_Pin);
+//	  LED_ON(EXT_GREEN_LED_Pin);
+//	  HAL_Delay(500);
+//	  LED_OFF(EXT_GREEN_LED_Pin);
+//	  LED_ON(EXT_BLUE_LED_Pin);
+//	  HAL_Delay(500);
+//	  LED_OFF(EXT_BLUE_LED_Pin);
+
+	  uint8_t command_buffer[2] = {0x2C, 0x06};
+	  ret = HAL_I2C_Master_Transmit(&hi2c1, SHT31_ADD, command_buffer, 2, HAL_MAX_DELAY);
+	  if (ret != HAL_OK) {
+		strcpy((char*)msg, "Error 1\r\n");
+	  } else {
+		ret = HAL_I2C_Master_Receive(&hi2c1, SHT31_ADD, data, 6, HAL_MAX_DELAY);
+		if (ret != HAL_OK) {
+			strcpy((char*)msg, "Error 2\r\n");
+		} else {
+		    temp_raw = data[0] << 8 | data[1];
+		    temp_c = ((float)temp_raw * 175.0f / 65535.0f) - 45.0f;
+
+		    humidity_raw = data[3] << 8 | data[4];
+		    humidity = ((float)humidity_raw * 100.0f / 65535.0f);
+		    sprintf((char*)msg, "Temperature: %.1f'C%, Humidity: %.1f%%\r\n", (temp_c), (humidity));
+		}
+	  }
+
+	  HAL_UART_Transmit(&huart2, msg, strlen((char*) msg), 100);
+
+	  if (humidity > 70.0f) {
+		  LED_OFF(EXT_GREEN_LED_Pin);
+		  LED_ON(EXT_RED_LED_Pin);
+	  } else {
+		  LED_OFF(EXT_RED_LED_Pin);
+		  LED_ON(EXT_GREEN_LED_Pin);
+	  }
+	  HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
