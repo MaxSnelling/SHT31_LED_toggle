@@ -28,7 +28,7 @@
 /* USER CODE BEGIN PTD */
 static void LED_ON(uint16_t gpio_pin);
 static void LED_OFF(uint16_t gpio_pin);
-static float read_humidity();
+static uint8_t read_sht31_outputs(float * temp_c, float * humidity);
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -96,47 +96,26 @@ int main(void)
   MX_USART2_UART_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  uint8_t data[10];
   uint8_t msg[64];
-  uint16_t temp_raw, humidity_raw;
-  HAL_StatusTypeDef ret;
+  uint8_t return_status;
+  float humidity_limit = 70.0f;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	  LED_ON(EXT_RED_LED_Pin);
-//	  HAL_Delay(500);
-//	  LED_OFF(EXT_RED_LED_Pin);
-//	  LED_ON(EXT_GREEN_LED_Pin);
-//	  HAL_Delay(500);
-//	  LED_OFF(EXT_GREEN_LED_Pin);
-//	  LED_ON(EXT_BLUE_LED_Pin);
-//	  HAL_Delay(500);
-//	  LED_OFF(EXT_BLUE_LED_Pin);
-
-	  uint8_t command_buffer[2] = {0x2C, 0x06};
-	  ret = HAL_I2C_Master_Transmit(&hi2c1, SHT31_ADD, command_buffer, 2, HAL_MAX_DELAY);
-	  if (ret != HAL_OK) {
-		strcpy((char*)msg, "Error 1\r\n");
-	  } else {
-		ret = HAL_I2C_Master_Receive(&hi2c1, SHT31_ADD, data, 6, HAL_MAX_DELAY);
-		if (ret != HAL_OK) {
-			strcpy((char*)msg, "Error 2\r\n");
-		} else {
-		    temp_raw = data[0] << 8 | data[1];
-		    temp_c = ((float)temp_raw * 175.0f / 65535.0f) - 45.0f;
-
-		    humidity_raw = data[3] << 8 | data[4];
-		    humidity = ((float)humidity_raw * 100.0f / 65535.0f);
-		    sprintf((char*)msg, "Temperature: %.1f'C%, Humidity: %.1f%%\r\n", (temp_c), (humidity));
-		}
+	  return_status = read_sht31_outputs(&temp_c, &humidity);
+	  if (return_status != 0) {
+		  sprintf((char*)msg, "Failed to read from SHT31, error code: %i\r\n", return_status);
+	  }
+	  else {
+		  sprintf((char*)msg, "Temperature: %.1f'C%, Humidity: %.1f%%\r\n", temp_c, humidity);
 	  }
 
 	  HAL_UART_Transmit(&huart2, msg, strlen((char*) msg), 100);
 
-	  if (humidity > 70.0f) {
+	  if (humidity >= humidity_limit) {
 		  LED_OFF(EXT_GREEN_LED_Pin);
 		  LED_ON(EXT_RED_LED_Pin);
 	  } else {
@@ -322,6 +301,28 @@ static void LED_ON(uint16_t gpio_pin)
 static void LED_OFF(uint16_t gpio_pin)
 {
 	HAL_GPIO_WritePin(GPIOC, gpio_pin, GPIO_PIN_SET);
+}
+
+static uint8_t read_sht31_outputs(float * temp_c, float * humidity)
+{
+	uint8_t data[10];
+	uint8_t command_buffer[2] = {0x2C, 0x06};
+	HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit(&hi2c1, SHT31_ADD, command_buffer, 2, HAL_MAX_DELAY);
+	if (ret != HAL_OK) {
+		return 1;
+	} else {
+		ret = HAL_I2C_Master_Receive(&hi2c1, SHT31_ADD, data, 6, HAL_MAX_DELAY);
+		if (ret != HAL_OK) {
+			return 2;
+		} else {
+			uint16_t temp_raw = data[0] << 8 | data[1];
+			*temp_c = ((float)temp_raw * 175.0f / 65535.0f) - 45.0f;
+
+			uint16_t humidity_raw = data[3] << 8 | data[4];
+			*humidity = ((float)humidity_raw * 100.0f / 65535.0f);
+		}
+	}
+	return 0;
 }
 
 /* USER CODE END 4 */
